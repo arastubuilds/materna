@@ -1,57 +1,105 @@
-import { streamText, convertToModelMessages, UIMessage, tool, stepCountIs } from "ai";
+  // import { streamText, convertToModelMessages, UIMessage, tool, stepCountIs } from "ai";
+  // import { google } from "@ai-sdk/google";
+  // import { z } from "zod";
+
+  // import { findRelevantContent } from "@/lib/actions/resource";
+
+  // export const maxDuration = 30;
+
+  // export async function POST(req: Request) {
+  //   const { messages }: { messages: UIMessage[] } = await req.json();
+
+  //   const result = streamText({
+  //     model: google("gemini-2.5-flash-lite"),
+  //     system: `
+  //     You are "Materna" — a supportive and knowledgeable maternal health assistant.
+
+  //     You have access to two retrieval tools:
+
+  //     1. **Community Retrieval Tool** — searches a user-generated knowledge base of posts and shared experiences related to maternal care and health.
+  //     2. **Guide Retrieval Tool** — searches a curated collection of professional documents, research papers, and health guides.
+
+  //     When answering a question:
+  //     - Decide **which tool** (or both) to call based on the user's intent:
+  //       - If the question is about *personal experiences, advice, or symptoms*, use the **Community Retrieval Tool**.
+  //       - If the question is about *facts, safety, medication, or medical guidance*, use the **Guide Retrieval Tool**.
+  //       - If uncertain, you may call both.
+  //     - Use the retrieved context to form a warm, concise, and trustworthy answer.
+  //     - If neither source yields relevant context, reply:
+  //       "I'm not sure based on the current knowledge base."
+
+  //     Your tone should remain warm, respectful, and informative — like a trusted companion helping someone understand maternal health.
+  //     `,
+  //     messages: convertToModelMessages(messages),
+  //     stopWhen: stepCountIs(5),
+  //     tools: {
+  //       // Add new content to the knowledge base
+  //       // addResource: tool({
+  //       //   description: "Add a new maternal health resource to the Pinecone knowledge base.",
+  //       //   inputSchema: z.object({
+  //       //     content: z.string().describe("The resource text or content to embed."),
+  //       //   }),
+  //       //   execute: async ({ content }) => createResource({ content }),
+  //       // }),
+
+  //       // Use the LangChain agent for retrieval
+  //       getInformation: tool({
+  //         description: "Use the LangChain retrieval agent to find relevant information and answer the question.",
+  //         inputSchema: z.object({
+  //           question: z.string().describe("The user's question or query."),
+  //         }),
+  //         execute: async ({ question }) => findRelevantContent(question),
+  //       }),
+  //     }
+  //   });
+
+  //   return result.toUIMessageStreamResponse();
+  // }
+  import {
+  streamText,
+  convertToModelMessages,
+  tool,
+  stepCountIs,
+} from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
 
-import { findRelevantContent } from "@/lib/actions/resource";
+import { runRetrievalAgent } from "@/lib/ai/agent";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { messages }: { messages: UIMessage[] } = await req.json();
+  const { messages } = await req.json();
 
   const result = streamText({
-    model: google("gemini-2.5-flash"),
+    model: google("gemini-2.5-flash-lite"),
     system: `
-    You are "Materna" — a supportive and knowledgeable maternal health assistant.
+You are "Materna" — a supportive and knowledgeable maternal health assistant.
 
-    You have access to two retrieval tools:
+You have access to two retrieval tools:
+1. Community knowledge (user experiences)
+2. Professional guides (medical documents)
 
-    1. **Community Retrieval Tool** — searches a user-generated knowledge base of posts and shared experiences related to maternal care and health.
-    2. **Guide Retrieval Tool** — searches a curated collection of professional documents, research papers, and health guides.
-
-    When answering a question:
-    - Decide **which tool** (or both) to call based on the user's intent:
-      - If the question is about *personal experiences, advice, or symptoms*, use the **Community Retrieval Tool**.
-      - If the question is about *facts, safety, medication, or medical guidance*, use the **Guide Retrieval Tool**.
-      - If uncertain, you may call both.
-    - Use the retrieved context to form a warm, concise, and trustworthy answer.
-    - If neither source yields relevant context, reply:
-      "I'm not sure based on the current knowledge base."
-
-    Your tone should remain warm, respectful, and informative — like a trusted companion helping someone understand maternal health.
+Decide which source to use and respond clearly and compassionately.
     `,
     messages: convertToModelMessages(messages),
     stopWhen: stepCountIs(5),
     tools: {
-      // Add new content to the knowledge base
-      // addResource: tool({
-      //   description: "Add a new maternal health resource to the Pinecone knowledge base.",
-      //   inputSchema: z.object({
-      //     content: z.string().describe("The resource text or content to embed."),
-      //   }),
-      //   execute: async ({ content }) => createResource({ content }),
-      // }),
-
-      // Use the LangChain agent for retrieval
       getInformation: tool({
-        description: "Use the LangChain retrieval agent to find relevant information and answer the question.",
+        description:
+          "Retrieve relevant maternal health information from community posts and professional guides.",
         inputSchema: z.object({
-          question: z.string().describe("The user's question or query."),
+          question: z.string(),
         }),
-        execute: async ({ question }) => findRelevantContent(question),
+        execute: async ({ question }) => {
+          // IMPORTANT: return plain text
+          const text = await runRetrievalAgent(question);
+          return text ?? "I'm not sure based on the current knowledge base.";
+        },
       }),
-    }
+    },
   });
 
   return result.toUIMessageStreamResponse();
 }
+

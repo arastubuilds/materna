@@ -37,15 +37,15 @@ export const createResource = async (input: NewResourceParams) => {
   }
 };
 
-export const findRelevantContent = async (question: string) => {
-  console.log("User's question:", question);
-  console.log("calling agent");
+// export const findRelevantContent = async (question: string) => {
+//   console.log("User's question:", question);
+//   console.log("calling agent");
   
-  const finalText = await runRetrievalAgent(question);
-  console.log("final text:", finalText);
-  return {
-    type: "tool-result",
-    tool: "getInformation",
-    content: [{ type: "text", text: finalText || "I'm not sure based on the current knowledge base." }],
-  };
-};
+//   const finalText = await runRetrievalAgent(question);
+//   console.log("final text:", finalText);
+//   return {
+//     type: "tool-result",
+//     tool: "getInformation",
+//     content: [{ type: "text", text: finalText || "I'm not sure based on the current knowledge base." }],
+//   };
+// };

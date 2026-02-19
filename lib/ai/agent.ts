@@ -13,20 +13,25 @@ const retrieveSchema = z.object({
 
 const retrieve = tool(
   async ({ query }) => {
-    const retrievedDocs = await vectorStore.similaritySearch(query, 3);
-    const serialized = retrievedDocs
-      .map(
-        (doc) => `Source: ${doc.metadata.source || "unkown"}\nContent: ${doc.pageContent}`
-      )
-      .join("\n");
-    return [serialized, retrievedDocs];
-  },
-  {
-    name: "retrieve",
-    description: "Retrieve relevant information from prior user submissions.",
-    schema: retrieveSchema,
-    responseFormat: "content_and_artifact",
-  }
+      try{
+        const retrievedDocs = await vectorStore.similaritySearch(query, 3);
+        const serialized = retrievedDocs
+          .map(
+            (doc) => `Source: ${doc.metadata.source || "unkown"}\nContent: ${doc.pageContent}`
+          )
+          .join("\n");
+        return serialized;
+      } catch(err) {
+        console.log(err);
+        throw err;
+      }
+    },
+    {
+      name: "retrieve",
+      description: "Retrieve relevant information from prior user submissions.",
+      schema: retrieveSchema,
+      responseFormat: "content",
+    }
 );
 const retrieveFromDocs = tool(
   async ({ query }) => {
@@ -36,13 +41,13 @@ const retrieveFromDocs = tool(
         (doc) => `Source: ${doc.metadata.source}\nContent: ${doc.pageContent}`
       )
       .join("\n");
-    return [serialized, retrievedDocs];
+    return serialized;
   },
   {
     name: "retrieve-from-docs",
     description: "Retrieve information related to a query from embedded documents on the subject matter.",
     schema: retrieveSchema,
-    responseFormat: "content_and_artifact",
+    responseFormat: "content",
   }
 );
 
@@ -73,10 +78,14 @@ export async function runRetrievalAgent(query: string) {
   // Explicitly call both tools
   console.log("agent called");
   // await agent(query);
-  const [community, guides] = await Promise.all([
-    retrieve.invoke({ query }),
-    retrieveFromDocs.invoke({ query }),
-  ]);
+  console.log("calling community");
+  const community = await retrieve.invoke({ query });
+  console.log("community done");
+
+  console.log("calling guides");
+  const guides = await retrieveFromDocs.invoke({ query });
+  console.log("guides done");
+
   console.log("tools invoked");
 
   const context = `
@@ -110,16 +119,16 @@ export async function runRetrievalAgent(query: string) {
 //   console.log(txt);
 // };
 
-export async function agent(query: string){
-  const agent = createAgent({
-    model,
-    tools,
-    systemPrompt,
-  });
-  const response = await agent.invoke({
-    messages: [{ role: "user", content: query }],
-  });
-  console.log("create agent response:", response.messages);
+// export async function agent(query: string){
+//   const agent = createAgent({
+//     model,
+//     tools,
+//     systemPrompt,
+//   });
+//   const response = await agent.invoke({
+//     messages: [{ role: "user", content: query }],
+//   });
+//   console.log("create agent response:", response.messages);
 
-}
+// }
 
